@@ -17,7 +17,10 @@ RUN apt-get install -y --no-install-recommends \
     rsync \
     traceroute \
     ncdu \
-    xz-utils
+    xz-utils \
+    httpie \
+    rclone \
+    fuse
 
 # dev tools
 RUN apt-get install -y --no-install-recommends \
@@ -38,22 +41,25 @@ RUN apt install -y --no-install-recommends \
     libreadline-dev \
     libtk8.6 \
     libgdm-dev \
-    libdb4o-cil-dev \
     libpcap-dev \
     libbz2-dev \
     libffi-dev \
     liblzma-dev \
     zlib1g-dev \
     tk-dev \
-    libpq-dev
+    libpq-dev \
+    libxmlsec1-dev
 
 # Nodejs
-RUN wget -O - https://nodejs.org/dist/v20.10.0/node-v20.10.0-linux-x64.tar.gz | tar xz
-RUN mv node* /opt/node
-RUN ln -s /opt/node/bin/* /usr/local/bin
+# RUN wget -O - https://nodejs.org/dist/v20.10.0/node-v20.10.0-linux-x64.tar.gz | tar xz
+# RUN mv node* /opt/node
+# RUN ln -s /opt/node/bin/* /usr/local/bin
+
+# playwright
+# RUN npx -y playwright@1.50.1 install --with-deps
 
 # Docker client
-RUN wget -O - https://download.docker.com/linux/static/stable/x86_64/docker-25.0.4.tgz | tar zx -C /usr/local/bin --strip-components=1 docker/docker
+RUN curl -fsSL https://get.docker.com -o get-docker.sh | sh
 
 # Docker Compose
 RUN curl -L "https://github.com/docker/compose/releases/download/v2.24.7/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose && chmod +x /usr/local/bin/docker-compose
@@ -62,8 +68,11 @@ RUN mkdir -p /usr/local/lib/docker/cli-plugins && \
 
 
 # kubectl
-RUN wget -P /usr/local/bin https://storage.googleapis.com/kubernetes-release/release/v1.19.1/bin/linux/amd64/kubectl
-RUN chmod +x /usr/local/bin/kubectl
+# RUN wget -P /usr/local/bin https://storage.googleapis.com/kubernetes-release/release/v1.19.1/bin/linux/amd64/kubectl
+# RUN chmod +x /usr/local/bin/kubectl
+RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+    install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl && \
+    rm kubectl
 
 # Go
 COPY --from=golang:1.17 /usr/local/go /usr/local/go
@@ -73,7 +82,7 @@ ENV PATH=$PATH:/usr/local/go/bin
 RUN apt-get install -y --no-install-recommends postgresql
 
 # terraform
-RUN wget https://releases.hashicorp.com/terraform/0.15.3/terraform_0.15.3_linux_amd64.zip && \
+RUN wget https://releases.hashicorp.com/terraform/1.9.8/terraform_1.9.8_linux_amd64.zip && \
     unzip *.zip && \
     mv terraform /usr/local/bin && \
     rm *.zip
@@ -88,5 +97,12 @@ RUN wget https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip && \
     ./aws/install && \
     rm *.zip && \
     rm -rf aws
+
+# helm
+COPY --from=alpine/helm /usr/bin/helm /usr/bin/helm
+
+# jwt-cli
+RUN wget -O - https://github.com/mike-engel/jwt-cli/releases/download/6.2.0/jwt-linux.tar.gz | tar zx && \
+    mv jwt /usr/local/bin
 
 USER coder
